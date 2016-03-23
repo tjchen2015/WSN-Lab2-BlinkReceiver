@@ -35,40 +35,37 @@
  **/
 
 #include "Timer.h"
+#include "BlinkToRadio.h"
 
 module BlinkC @safe()
 {
-  uses interface Timer<TMilli> as Timer0;
-  uses interface Timer<TMilli> as Timer1;
-  uses interface Timer<TMilli> as Timer2;
   uses interface Leds;
   uses interface Boot;
+  uses interface Receive;
+  uses interface SplitControl as AMControl;
 }
 implementation
 {
   event void Boot.booted()
   {
-    call Timer0.startPeriodic( 250 );
-    call Timer1.startPeriodic( 500 );
-    call Timer2.startPeriodic( 1000 );
-  }
-
-  event void Timer0.fired()
-  {
-    dbg("BlinkC", "Timer 0 fired @ %s.\n", sim_time_string());
-    call Leds.led0Toggle();
+	call AMControl.start();
   }
   
-  event void Timer1.fired()
-  {
-    dbg("BlinkC", "Timer 1 fired @ %s \n", sim_time_string());
-    call Leds.led1Toggle();
+  event message_t * Receive.receive(message_t *msg, void *payload, uint8_t len){
+	if(len == sizeof(BlinkToRadioMsg)){
+		BlinkToRadioMsg* btrpkt = (BlinkToRadioMsg*)payload;
+		call Leds.set(btrpkt->counter);
+	}
+	return msg;
   }
   
-  event void Timer2.fired()
-  {
-    dbg("BlinkC", "Timer 2 fired @ %s.\n", sim_time_string());
-    call Leds.led2Toggle();
+  event void AMControl.startDone(error_t error){
+	if (error == FAIL){
+		call AMControl.start();
+	}
+  }
+  
+  event void AMControl.stopDone(error_t error){
   }
 }
 
